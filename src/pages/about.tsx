@@ -1,321 +1,565 @@
-import React, { useEffect, useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import React, { useEffect, useState } from 'react';
+import Head from 'next/head';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
 
-const About: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"],
-  });
+interface Trail {
+  id: number;
+  x: number;
+  y: number;
+  color: string;
+}
 
-  const y1 = useTransform(scrollYProgress, [0, 1], [0, 200]);
-  const y2 = useTransform(scrollYProgress, [0, 1], [0, -200]);
+interface Shape {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  type: 'square' | 'circle' | 'rectangle' | 'rhombus';
+  color: string;
+  glow: boolean;
+}
+
+export default function AboutPage() {
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const [trails, setTrails] = useState<Trail[]>([]);
+  const [trailId, setTrailId] = useState(0);
+  const [shapes, setShapes] = useState<Shape[]>([]);
+
+  const springConfig = { damping: 30, stiffness: 200 };
+  const smoothX = useSpring(mouseX, springConfig);
+  const smoothY = useSpring(mouseY, springConfig);
+
+  // Initialize shapes
+  useEffect(() => {
+    const colors = ['border-red-500/30', 'border-red-600/25', 'border-white/20', 'border-red-400/35'];
+    const centerX = (typeof window !== 'undefined' ? window.innerWidth / 2 : 960);
+    const centerY = (typeof window !== 'undefined' ? window.innerHeight / 2 : 540);
+    
+    const shapeConfigs = [
+      // 3 small circles (fast)
+      { type: 'circle' as const, size: 80, speed: 2.0 },
+      { type: 'circle' as const, size: 90, speed: 1.8 },
+      { type: 'circle' as const, size: 85, speed: 2.2 },
+      // 1 big circle (slow)
+      { type: 'circle' as const, size: 200, speed: 0.5 },
+      // 2 medium squares (medium speed)
+      { type: 'square' as const, size: 130, speed: 1.2 },
+      { type: 'square' as const, size: 140, speed: 1.0 },
+      // 3 small rhombus (fast)
+      { type: 'rhombus' as const, size: 70, speed: 2.5 },
+      { type: 'rhombus' as const, size: 75, speed: 2.3 },
+      { type: 'rhombus' as const, size: 80, speed: 2.0 }
+    ];
+    
+    const initialShapes: Shape[] = shapeConfigs.map((config, i) => {
+      const angle = (i / shapeConfigs.length) * Math.PI * 2;
+      const distance = 200 + Math.random() * 300;
+      
+      return {
+        id: i,
+        x: centerX + Math.cos(angle) * distance,
+        y: centerY + Math.sin(angle) * distance,
+        vx: (Math.random() - 0.5) * config.speed,
+        vy: (Math.random() - 0.5) * config.speed,
+        size: config.size,
+        type: config.type,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        glow: false
+      };
+    });
+    
+    setShapes(initialShapes);
+  }, []);
+
+  // Animate shapes with collision detection
+  useEffect(() => {
+    if (shapes.length === 0) return;
+    
+    const animationFrame = setInterval(() => {
+      setShapes(prevShapes => {
+        const newShapes = prevShapes.map(shape => {
+          let newX = shape.x + shape.vx;
+          let newY = shape.y + shape.vy;
+          let newVx = shape.vx;
+          let newVy = shape.vy;
+
+          // Bounce off walls
+          if (newX <= 0 || newX >= (typeof window !== 'undefined' ? window.innerWidth - shape.size : 1920)) {
+            newVx = -newVx;
+            newX = Math.max(0, Math.min(newX, (typeof window !== 'undefined' ? window.innerWidth - shape.size : 1920)));
+          }
+          if (newY <= 0 || newY >= (typeof window !== 'undefined' ? window.innerHeight - shape.size : 1080)) {
+            newVy = -newVy;
+            newY = Math.max(0, Math.min(newY, (typeof window !== 'undefined' ? window.innerHeight - shape.size : 1080)));
+          }
+
+          return { ...shape, x: newX, y: newY, vx: newVx, vy: newVy };
+        });
+
+        // Check collisions between shapes
+        for (let i = 0; i < newShapes.length; i++) {
+          for (let j = i + 1; j < newShapes.length; j++) {
+            const dx = newShapes[i].x - newShapes[j].x;
+            const dy = newShapes[i].y - newShapes[j].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const minDistance = (newShapes[i].size + newShapes[j].size) / 2 + 30;
+
+            if (distance < minDistance) {
+              // Bounce away from each other
+              const angle = Math.atan2(dy, dx);
+              const targetX = newShapes[j].x + Math.cos(angle) * minDistance;
+              const targetY = newShapes[j].y + Math.sin(angle) * minDistance;
+              
+              newShapes[i].vx = (targetX - newShapes[j].x) * 0.05;
+              newShapes[i].vy = (targetY - newShapes[j].y) * 0.05;
+              newShapes[j].vx = -newShapes[i].vx;
+              newShapes[j].vy = -newShapes[i].vy;
+            }
+          }
+        }
+
+        return newShapes;
+      });
+    }, 50);
+
+    return () => clearInterval(animationFrame);
+  }, [shapes.length]);
+
+  // Random glow effect
+  useEffect(() => {
+    const glowInterval = setInterval(() => {
+      setShapes(prev => prev.map(shape => ({
+        ...shape,
+        glow: Math.random() > 0.7
+      })));
+    }, 2000);
+
+    return () => clearInterval(glowInterval);
+  }, []);
+
+  useEffect(() => {
+    let lastTime = Date.now();
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseX.set(e.clientX - 150);
+      mouseY.set(e.clientY - 150);
+      
+      // Add trail dots at intervals
+      const now = Date.now();
+      if (now - lastTime > 50) {
+        const newTrail: Trail = {
+          id: trailId,
+          x: e.clientX,
+          y: e.clientY,
+          color: Math.random() > 0.5 ? 'bg-red-500' : 'bg-white'
+        };
+        setTrails(prev => [...prev.slice(-20), newTrail]);
+        setTrailId(prev => prev + 1);
+        lastTime = now;
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [mouseX, mouseY, trailId]);
+
+  const containerVariants = {
+    initial: { 
+      boxShadow: "0 0 15px rgba(56, 189, 248, 0.2)", 
+      borderColor: "rgba(56, 189, 248, 0.3)",
+      backgroundColor: "rgba(0, 0, 0, 0.4)" 
+    },
+    hover: { 
+      boxShadow: "0 0 35px rgba(235, 0, 40, 0.5)", 
+      borderColor: "rgba(255, 255, 255, 0.9)",
+      backgroundColor: "rgba(10, 10, 10, 0.6)",
+      transition: { duration: 0.3 }
+    }
+  };
 
   return (
-    <div ref={containerRef} className="bg-black text-white min-h-screen relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 z-0">
-        {/* Gradient Orbs */}
-        <motion.div
-          className="absolute top-20 left-10 w-96 h-96 bg-red-600/30 rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.2, 1],
-            x: [0, 50, 0],
-            y: [0, 30, 0],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute top-40 right-20 w-[500px] h-[500px] bg-blue-400/20 rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.3, 1],
-            x: [0, -30, 0],
-            y: [0, 50, 0],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-20 left-1/3 w-[400px] h-[400px] bg-red-500/20 rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.4, 1],
-            x: [0, 40, 0],
-            y: [0, -40, 0],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
-        
-        {/* Floating Particles */}
-        {[...Array(20)].map((_, i) => (
+    <div className="relative min-h-screen w-full bg-black text-white font-sans selection:bg-red-600 overflow-x-hidden">
+      <Head>
+        <title>About | TEDxNIITUniversity</title>
+      </Head>
+
+      {/* DYNAMIC BACKGROUND */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        {/* Floating geometric shapes */}
+        {shapes.map((shape) => (
           <motion.div
-            key={i}
-            className="absolute w-1 h-1 bg-blue-300/50 rounded-full"
+            key={shape.id}
+            className={`absolute ${shape.color} transition-all duration-500`}
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              y: [0, -30, 0],
-              opacity: [0.2, 0.8, 0.2],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 4,
-              repeat: Infinity,
-              delay: Math.random() * 2,
+              left: shape.x,
+              top: shape.y,
+              width: shape.size,
+              height: shape.size,
+              borderWidth: 2,
+              borderRadius: shape.type === 'circle' ? '50%' : shape.type === 'square' ? '8px' : '0',
+              transform: shape.type === 'rhombus' ? 'rotate(45deg)' : 'none',
+              boxShadow: shape.glow ? `0 0 20px ${shape.color.includes('red') ? 'rgba(239, 68, 68, 0.6)' : 'rgba(255, 255, 255, 0.5)'}` : 'none',
+              opacity: shape.glow ? 0.8 : 0.5
             }}
           />
         ))}
+        
+        {/* Cursor trail dots */}
+        {trails.map((trail) => (
+          <motion.div
+            key={trail.id}
+            initial={{ opacity: 0.8, scale: 1 }}
+            animate={{ opacity: 0, scale: 0 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            className={`absolute w-2 h-2 rounded-full ${trail.color}`}
+            style={{ left: trail.x, top: trail.y }}
+          />
+        ))}
+        
+        {/* Smaller cursor-following glow */}
+        <motion.div
+          style={{ x: smoothX, y: smoothY }}
+          className="absolute h-[300px] w-[300px] rounded-full bg-red-600/20 blur-[80px]"
+        />
+        <motion.div
+          style={{ 
+            x: useSpring(mouseX, { damping: 40, stiffness: 150 }), 
+            y: useSpring(mouseY, { damping: 40, stiffness: 150 })
+          }}
+          className="absolute h-[200px] w-[200px] rounded-full bg-white/10 blur-[60px]"
+        />
+        
+        {/* Animated gradient mesh background */}
+        <motion.div
+          animate={{
+            backgroundPosition: ['0% 0%', '100% 100%', '0% 0%']
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(220, 38, 38, 0.1) 0%, transparent 50%), radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 40%)',
+            backgroundSize: '200% 200%'
+          }}
+        />
+        
+        {/* Floating lines */}
+        <motion.div
+          animate={{
+            x: [-100, 100, -100],
+            opacity: [0.1, 0.3, 0.1]
+          }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/3 left-0 w-full h-px bg-gradient-to-r from-transparent via-red-500/30 to-transparent"
+        />
+        <motion.div
+          animate={{
+            x: [100, -100, 100],
+            opacity: [0.1, 0.25, 0.1]
+          }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+          className="absolute bottom-1/3 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+        />
+        
+        {/* Ambient red orbs */}
+        <motion.div
+          animate={{
+            x: [0, 150, -100, 0],
+            y: [0, -180, 120, 0],
+            scale: [1, 1.2, 0.9, 1],
+            opacity: [0.15, 0.25, 0.18, 0.15]
+          }}
+          transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/4 right-1/3 h-[400px] w-[400px] rounded-full bg-red-600/15 blur-[100px]"
+        />
+        <motion.div
+          animate={{
+            x: [0, -180, 120, 0],
+            y: [0, 150, -100, 0],
+            scale: [1, 1.3, 1, 1],
+            opacity: [0.18, 0.3, 0.2, 0.18]
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-1/3 left-1/4 h-[450px] w-[450px] rounded-full bg-red-700/12 blur-[110px]"
+        />
+        
+        {/* Dark depth layers */}
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],
+            opacity: [0.3, 0.5, 0.3]
+          }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/2 left-1/2 h-[350px] w-[350px] rounded-full bg-black/25 blur-[70px] -translate-x-1/2 -translate-y-1/2"
+        />
+        
+        {/* Subtle white accent */}
+        <motion.div
+          animate={{
+            scale: [1, 1.4, 1],
+            opacity: [0.08, 0.15, 0.08]
+          }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          className="absolute top-1/4 left-1/2 h-[250px] w-[250px] rounded-full bg-white/10 blur-[80px]"
+        />
+        
+        {/* Floating particles */}
+        <motion.div
+          animate={{ 
+            y: [-40, 40, -40],
+            x: [-20, 20, -20],
+            opacity: [0.4, 0.7, 0.4]
+          }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/4 left-1/3 h-3 w-3 rounded-full bg-red-500/60 blur-sm"
+        />
+        <motion.div
+          animate={{ 
+            y: [50, -50, 50],
+            x: [25, -25, 25],
+            opacity: [0.3, 0.6, 0.3]
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          className="absolute top-2/3 right-1/4 h-2 w-2 rounded-full bg-white/50 blur-sm"
+        />
+        <motion.div
+          animate={{ 
+            y: [-30, 30, -30],
+            opacity: [0.35, 0.65, 0.35]
+          }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2.5 }}
+          className="absolute bottom-1/3 left-2/3 h-3 w-3 rounded-full bg-red-400/55 blur-sm"
+        />
+        <motion.div
+          animate={{ 
+            x: [-35, 35, -35],
+            y: [25, -25, 25],
+            opacity: [0.4, 0.7, 0.4]
+          }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+          className="absolute bottom-1/4 right-1/3 h-2 w-2 rounded-full bg-white/45 blur-sm"
+        />
       </div>
 
-      {/* Hero Section */}
-      <section className="relative z-10 min-h-screen flex items-center justify-center px-4">
-        <div className="max-w-7xl mx-auto text-center">
+      <main className="relative z-10 flex flex-col items-center">
+        {/* HERO SECTION - RESTORED BRANDING */}
+        <section className="h-[80vh] flex flex-col items-center justify-center text-center px-4">
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
+            transition={{ duration: 0.8 }}
           >
-            <motion.h1
-              className="text-7xl md:text-9xl font-bold mb-6 bg-gradient-to-r from-red-500 via-red-600 to-blue-400 bg-clip-text text-transparent"
-              animate={{
-                backgroundPosition: ["0%", "100%", "0%"],
-              }}
-              transition={{
-                duration: 5,
-                repeat: Infinity,
-                ease: "linear",
-              }}
+            <motion.h1 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="text-5xl md:text-7xl font-black tracking-tighter mb-2"
             >
-              TEDx<span className="text-white">NIIT</span>
+              ABOUT
             </motion.h1>
-            <motion.h2
-              className="text-4xl md:text-6xl font-semibold mb-8 text-blue-200"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3, duration: 1 }}
+            <motion.h2 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+              className="text-xl md:text-3xl font-bold tracking-tight"
             >
-              University
+              <span className="text-[#eb0028]">TEDx</span>
+              <span className="ml-1 text-white">NIITUniversity</span>
             </motion.h2>
-            <motion.p
-              className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6, duration: 1 }}
-            >
-              Ideas Worth Spreading
-            </motion.p>
-          </motion.div>
-        </div>
-
-        {/* Scroll Indicator */}
-        <motion.div
-          className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
-          animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <div className="w-6 h-10 border-2 border-red-500 rounded-full flex justify-center">
-            <motion.div
-              className="w-1 h-2 bg-red-500 rounded-full mt-2"
-              animate={{ y: [0, 12, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              transition={{ delay: 0.7, duration: 1, ease: "easeOut" }}
+              className="h-1 bg-[#eb0028] mt-4"
             />
-          </div>
-        </motion.div>
-      </section>
+          </motion.div>
+        </section>
 
-      {/* Content Container 1 - Mission/Vision */}
-      <section className="relative z-10 py-32 px-4">
-        <motion.div
-          className="max-w-7xl mx-auto"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-          viewport={{ once: true }}
-        >
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <motion.div
-              className="relative h-[400px] bg-gradient-to-br from-red-600/10 via-black/50 to-blue-400/10 backdrop-blur-sm border border-red-500/20 rounded-2xl p-8 flex items-center justify-center"
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.3 }}
-              style={{ y: y1 }}
+        {/* TEDxNIITUniversity DESCRIPTION SECTION */}
+        <section className="w-full max-w-4xl mx-auto px-8 pb-20">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.5 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-8"
+          >
+            <motion.h2 
+              initial={{ opacity: 0, letterSpacing: "0.2em" }}
+              whileInView={{ opacity: 1, letterSpacing: "0.6em" }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2, duration: 0.8 }}
+              className="text-gray-500 uppercase tracking-[0.6em] text-xs font-semibold mb-6"
             >
-              <div className="text-center">
-                <div className="text-6xl mb-4">🎯</div>
-                <h3 className="text-3xl font-bold text-red-500 mb-4">Our Mission</h3>
-                <p className="text-gray-400">Content placeholder - Add your mission text here</p>
-              </div>
-            </motion.div>
+              ABOUT TEDxNIITUniversity
+            </motion.h2>
+          </motion.div>
 
-            <motion.div
-              className="relative h-[400px] bg-gradient-to-br from-blue-400/10 via-black/50 to-red-600/10 backdrop-blur-sm border border-blue-400/20 rounded-2xl p-8 flex items-center justify-center"
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.3 }}
-              style={{ y: y2 }}
+          {/* INTERACTIVE DESCRIPTION CONTAINER */}
+          <motion.div 
+            variants={containerVariants}
+            initial="initial"
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            whileHover="hover"
+            transition={{ duration: 0.6 }}
+            className="p-12 rounded-3xl border backdrop-blur-md cursor-default mx-auto opacity-0 translate-y-10"
+          >
+            <motion.h4 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+              className="text-3xl font-bold mb-6 text-sky-400 text-center"
             >
-              <div className="text-center">
-                <div className="text-6xl mb-4">👁️</div>
-                <h3 className="text-3xl font-bold text-blue-400 mb-4">Our Vision</h3>
-                <p className="text-gray-400">Content placeholder - Add your vision text here</p>
-              </div>
-            </motion.div>
-          </div>
-        </motion.div>
-      </section>
+              Our Mission
+            </motion.h4>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.5, duration: 0.8 }}
+              className="text-gray-300 text-lg leading-relaxed text-center"
+            >
+              TEDxNIITUniversity is a platform where ideas worth spreading come to life. 
+              We bring together innovators, thinkers, and dreamers from diverse backgrounds 
+              to share insights that inspire change and spark conversations. Through the 
+              spirit of TED's mission, we aim to foster a community that celebrates 
+              curiosity, creativity, and the power of human connection.
+            </motion.p>
+            <motion.div 
+              initial={{ width: 0 }}
+              whileInView={{ width: "60%" }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3, duration: 0.8 }}
+              className="h-0.5 bg-gradient-to-r from-transparent via-sky-400 to-transparent mt-8 mx-auto"
+            />
+          </motion.div>
+        </section>
 
-      {/* Content Container 2 - About TEDx */}
-      <section className="relative z-10 py-32 px-4">
-        <motion.div
-          className="max-w-6xl mx-auto"
-          initial={{ opacity: 0, y: 50 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-          viewport={{ once: true }}
-        >
-          <div className="relative bg-gradient-to-br from-red-900/20 via-black/60 to-blue-900/20 backdrop-blur-lg border border-red-500/30 rounded-3xl p-12 overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/10 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl" />
+        {/* THEME SECTION */}
+        <section className="w-full max-w-6xl mx-auto px-24 pb-32">
+          <div className="text-center mb-12">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.8 }}
+              transition={{ duration: 0.6 }}
+              className="text-gray-500 uppercase tracking-[0.6em] text-lg font-semibold mb-8"
+            >
+              THEME
+            </motion.h2>
             
-            <div className="relative z-10">
-              <motion.h2
-                className="text-5xl md:text-6xl font-bold mb-8 text-center"
+            {/* SUBLIS GLOWING REVEAL */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true, amount: 0.5 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="relative inline-block"
+            >
+              <motion.h2 
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
+                className="text-7xl md:text-9xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-sky-400 to-white bg-[length:200%_auto] animate-gradient-x py-2"
+              >
+                SUBLIS
+              </motion.h2>
+              <motion.div 
+                animate={{ opacity: [0.4, 0.8, 0.4] }}
+                transition={{ repeat: Infinity, duration: 3 }}
+                className="absolute inset-0 blur-2xl bg-sky-400/20 -z-10"
+              />
+            </motion.div>
+          </div>
+
+          {/* INTERACTIVE CONTAINERS */}
+          <div className="flex flex-col md:flex-row gap-8 items-stretch mt-16">
+            
+            {/* DESCRIPTION CONTAINER */}
+            <motion.div 
+              variants={containerVariants}
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              whileHover="hover"
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="flex-[2] p-10 rounded-3xl border backdrop-blur-md cursor-default"
+            >
+              <motion.h4 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4, duration: 0.6 }}
+                className="text-2xl font-bold mb-6 text-sky-400"
+              >
+                The Vision
+              </motion.h4>
+              <motion.p 
                 initial={{ opacity: 0 }}
                 whileInView={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.6, duration: 0.8 }}
+                className="text-gray-300 text-lg leading-relaxed"
               >
-                About <span className="text-red-500">TEDx</span>
-              </motion.h2>
-              <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-gray-700 rounded-xl">
-                <p className="text-gray-500 text-lg">Image/Content Placeholder - Add TEDx description here</p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </section>
+                Add your theme description here. This space is designed to explain the 
+                core philosophy behind SUBLIS. The container glows blue by default 
+                and reacts with a sharp white/red shift when you explore it.
+              </motion.p>
+            </motion.div>
 
-      {/* Content Container 3 - Stats/Achievements */}
-      <section className="relative z-10 py-32 px-4">
-        <motion.div
-          className="max-w-7xl mx-auto"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="text-5xl font-bold text-center mb-16">
-            Our <span className="text-blue-400">Impact</span>
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[1, 2, 3].map((item) => (
-              <motion.div
-                key={item}
-                className="relative h-[300px] bg-gradient-to-br from-black/80 via-red-900/20 to-blue-900/20 backdrop-blur-sm border border-gray-800 rounded-2xl p-8 flex flex-col items-center justify-center"
-                whileHover={{
-                  scale: 1.05,
-                  borderColor: "rgba(239, 68, 68, 0.5)",
-                }}
-                transition={{ duration: 0.3 }}
+            {/* LOGO CONTAINER */}
+            <motion.div 
+              variants={containerVariants}
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              whileHover="hover"
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="flex-1 p-10 rounded-3xl border backdrop-blur-md flex flex-col items-center justify-center cursor-default"
+            >
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
+                whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
+                className="relative group"
               >
-                <div className="text-5xl font-bold text-red-500 mb-4">000</div>
-                <h3 className="text-xl font-semibold mb-2 text-blue-200">Stat Title {item}</h3>
-                <p className="text-gray-400 text-center text-sm">Add your achievement stats here</p>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </section>
-
-      {/* Content Container 4 - Team Section */}
-      <section className="relative z-10 py-32 px-4">
-        <motion.div
-          className="max-w-7xl mx-auto"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="text-5xl md:text-6xl font-bold text-center mb-16">
-            Meet Our <span className="text-red-500">Team</span>
-          </h2>
-          <div className="grid md:grid-cols-4 gap-6">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
-              <motion.div
-                key={item}
-                className="relative h-[350px] bg-gradient-to-b from-gray-900/50 to-black/50 backdrop-blur-sm border border-gray-800 rounded-xl overflow-hidden group"
-                whileHover={{ y: -10 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-red-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="h-3/4 flex items-center justify-center border-b border-gray-800">
-                  <div className="text-gray-600 text-4xl">👤</div>
+                {/* Placeholder for your actual Logo */}
+                <div className="w-40 h-40 bg-white/10 rounded-full flex items-center justify-center border border-white/20 overflow-hidden">
+                   <span className="text-gray-500 font-bold">LOGO</span>
                 </div>
-                <div className="h-1/4 p-4 flex flex-col items-center justify-center">
-                  <p className="text-sm font-semibold text-blue-200">Member {item}</p>
-                  <p className="text-xs text-gray-500">Position</p>
-                </div>
+                {/* Decorative ring */}
+                <div className="absolute -inset-2 border border-dashed border-sky-400/30 rounded-full animate-[spin_20s_linear_infinite]" />
               </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </section>
-
-      {/* Content Container 5 - Call to Action */}
-      <section className="relative z-10 py-32 px-4">
-        <motion.div
-          className="max-w-5xl mx-auto"
-          initial={{ opacity: 0, scale: 0.9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1 }}
-          viewport={{ once: true }}
-        >
-          <div className="relative bg-gradient-to-r from-red-600/20 via-black/60 to-blue-500/20 backdrop-blur-lg border-2 border-red-500/50 rounded-3xl p-16 text-center overflow-hidden">
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-blue-500/10"
-              animate={{
-                x: ["-100%", "100%"],
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-            />
-            <div className="relative z-10">
-              <h2 className="text-5xl font-bold mb-6">
-                Join Our <span className="text-red-500">Journey</span>
-              </h2>
-              <p className="text-xl text-gray-300 mb-8">
-                Content placeholder - Add your call to action text here
-              </p>
-              <motion.button
-                className="px-12 py-4 bg-red-600 hover:bg-red-700 rounded-full text-lg font-semibold transition-colors duration-300"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <motion.p 
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.8, duration: 0.6 }}
+                className="mt-8 text-[10px] uppercase tracking-[0.3em] text-gray-400 font-medium"
               >
-                Get Involved
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
-      </section>
+                Official Theme Identity
+              </motion.p>
+            </motion.div>
 
-      {/* Footer Spacer */}
-      <div className="h-32" />
+          </div>
+        </section>
+      </main>
+
+      <style jsx global>{`
+        @keyframes gradient-x {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient-x {
+          background-size: 200% auto;
+          animation: gradient-x 4s linear infinite;
+        }
+      `}</style>
     </div>
   );
-};
-
-export default About;
+}
