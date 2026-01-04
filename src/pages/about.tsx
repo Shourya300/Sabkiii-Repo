@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Head from 'next/head';
+import Image from 'next/image';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 
 interface Trail {
@@ -39,16 +39,12 @@ export default function AboutPage() {
     const centerY = (typeof window !== 'undefined' ? window.innerHeight / 2 : 540);
     
     const shapeConfigs = [
-      // 3 small circles (fast)
       { type: 'circle' as const, size: 80, speed: 2.0 },
       { type: 'circle' as const, size: 90, speed: 1.8 },
       { type: 'circle' as const, size: 85, speed: 2.2 },
-      // 1 big circle (slow)
       { type: 'circle' as const, size: 200, speed: 0.5 },
-      // 2 medium squares (medium speed)
       { type: 'square' as const, size: 130, speed: 1.2 },
       { type: 'square' as const, size: 140, speed: 1.0 },
-      // 3 small rhombus (fast)
       { type: 'rhombus' as const, size: 70, speed: 2.5 },
       { type: 'rhombus' as const, size: 75, speed: 2.3 },
       { type: 'rhombus' as const, size: 80, speed: 2.0 }
@@ -86,7 +82,6 @@ export default function AboutPage() {
           let newVx = shape.vx;
           let newVy = shape.vy;
 
-          // Bounce off walls
           if (newX <= 0 || newX >= (typeof window !== 'undefined' ? window.innerWidth - shape.size : 1920)) {
             newVx = -newVx;
             newX = Math.max(0, Math.min(newX, (typeof window !== 'undefined' ? window.innerWidth - shape.size : 1920)));
@@ -99,7 +94,6 @@ export default function AboutPage() {
           return { ...shape, x: newX, y: newY, vx: newVx, vy: newVy };
         });
 
-        // Check collisions between shapes
         for (let i = 0; i < newShapes.length; i++) {
           for (let j = i + 1; j < newShapes.length; j++) {
             const dx = newShapes[i].x - newShapes[j].x;
@@ -108,7 +102,6 @@ export default function AboutPage() {
             const minDistance = (newShapes[i].size + newShapes[j].size) / 2 + 30;
 
             if (distance < minDistance) {
-              // Bounce away from each other
               const angle = Math.atan2(dy, dx);
               const targetX = newShapes[j].x + Math.cos(angle) * minDistance;
               const targetY = newShapes[j].y + Math.sin(angle) * minDistance;
@@ -131,10 +124,12 @@ export default function AboutPage() {
   // Random glow effect
   useEffect(() => {
     const glowInterval = setInterval(() => {
-      setShapes(prev => prev.map(shape => ({
-        ...shape,
-        glow: Math.random() > 0.7
-      })));
+      setShapes(prev => prev.map(shape => (
+        {
+          ...shape,
+          glow: Math.random() > 0.7
+        }
+      )));
     }, 2000);
 
     return () => clearInterval(glowInterval);
@@ -146,14 +141,13 @@ export default function AboutPage() {
       mouseX.set(e.clientX - 150);
       mouseY.set(e.clientY - 150);
       
-      // Add trail dots at intervals
       const now = Date.now();
       if (now - lastTime > 50) {
         const newTrail: Trail = {
           id: trailId,
           x: e.clientX,
           y: e.clientY,
-          color: Math.random() > 0.5 ? 'bg-red-500' : 'bg-white'
+          color: Math.random() > 0.5 ? 'bg-red-500' : 'bg-sky-400'
         };
         setTrails(prev => [...prev.slice(-20), newTrail]);
         setTrailId(prev => prev + 1);
@@ -164,14 +158,15 @@ export default function AboutPage() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [mouseX, mouseY, trailId]);
 
+  // Container variants with aqua/water theme
   const containerVariants = {
     initial: { 
-      boxShadow: "0 0 15px rgba(56, 189, 248, 0.2)", 
-      borderColor: "rgba(56, 189, 248, 0.3)",
+      boxShadow: "0 0 20px rgba(56, 189, 248, 0.35)", 
+      borderColor: "rgba(56, 189, 248, 0.5)",
       backgroundColor: "rgba(0, 0, 0, 0.4)" 
     },
     hover: { 
-      boxShadow: "0 0 35px rgba(235, 0, 40, 0.5)", 
+      boxShadow: "0 0 40px rgba(235, 0, 40, 0.6), 0 0 20px rgba(56, 189, 248, 0.4)", 
       borderColor: "rgba(255, 255, 255, 0.9)",
       backgroundColor: "rgba(10, 10, 10, 0.6)",
       transition: { duration: 0.3 }
@@ -180,11 +175,7 @@ export default function AboutPage() {
 
   return (
     <div className="relative min-h-screen w-full bg-black text-white font-sans selection:bg-red-600 overflow-x-hidden">
-      <Head>
-        <title>About | TEDxNIITUniversity</title>
-      </Head>
-
-      {/* DYNAMIC BACKGROUND */}
+      {/* ========== DYNAMIC BACKGROUND ========== */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         {/* Floating geometric shapes */}
         {shapes.map((shape) => (
@@ -205,7 +196,7 @@ export default function AboutPage() {
           />
         ))}
         
-        {/* Cursor trail dots */}
+        {/* Cursor trail dots - now includes aqua */}
         {trails.map((trail) => (
           <motion.div
             key={trail.id}
@@ -217,7 +208,7 @@ export default function AboutPage() {
           />
         ))}
         
-        {/* Smaller cursor-following glow */}
+        {/* Smaller cursor-following glow - split red and aqua */}
         <motion.div
           style={{ x: smoothX, y: smoothY }}
           className="absolute h-[300px] w-[300px] rounded-full bg-red-600/20 blur-[80px]"
@@ -227,21 +218,10 @@ export default function AboutPage() {
             x: useSpring(mouseX, { damping: 40, stiffness: 150 }), 
             y: useSpring(mouseY, { damping: 40, stiffness: 150 })
           }}
-          className="absolute h-[200px] w-[200px] rounded-full bg-white/10 blur-[60px]"
+          className="absolute h-[200px] w-[200px] rounded-full bg-sky-400/15 blur-[60px]"
         />
         
-        {/* Animated gradient mesh background */}
-        <motion.div
-          animate={{
-            backgroundPosition: ['0% 0%', '100% 100%', '0% 0%']
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(220, 38, 38, 0.1) 0%, transparent 50%), radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 40%)',
-            backgroundSize: '200% 200%'
-          }}
-        />
+        
         
         {/* Floating lines */}
         <motion.div
@@ -281,6 +261,18 @@ export default function AboutPage() {
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
           className="absolute bottom-1/3 left-1/4 h-[450px] w-[450px] rounded-full bg-red-700/12 blur-[110px]"
+        />
+        
+        {/* NEW: Aqua orbs for water theme balance */}
+        <motion.div
+          animate={{
+            x: [0, -200, 150, 0],
+            y: [0, 200, -150, 0],
+            scale: [1, 1.15, 1.1, 1],
+            opacity: [0.12, 0.2, 0.16, 0.12]
+          }}
+          transition={{ duration: 100, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          className="absolute top-2/3 right-1/4 h-[380px] w-[380px] rounded-full bg-sky-400/12 blur-[95px]"
         />
         
         {/* Dark depth layers */}
@@ -341,9 +333,24 @@ export default function AboutPage() {
         />
       </div>
 
+      {/* ========== MAIN CONTENT (AQUA/WATER INTEGRATED) ========== */}
       <main className="relative z-10 flex flex-col items-center">
-        {/* HERO SECTION - RESTORED BRANDING */}
+        
+        {/* ========== SECTION 1: HERO ========== */}
         <section className="h-[80vh] flex flex-col items-center justify-center text-center px-4">
+          {/* NEW: Aqua shimmer overlay for hero */}
+          <motion.div 
+            className="absolute inset-0 pointer-events-none"
+            animate={{
+              opacity: [0.1, 0.3, 0.1]
+            }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              background: 'radial-gradient(circle at center, rgba(56, 189, 248, 0.2) 0%, transparent 70%)',
+              mixBlendMode: 'screen'
+            }}
+          />
+          
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -375,7 +382,7 @@ export default function AboutPage() {
           </motion.div>
         </section>
 
-        {/* TEDxNIITUniversity DESCRIPTION SECTION */}
+        {/* ========== SECTION 2: ABOUT TED (GLOBAL) ========== */}
         <section className="w-full max-w-4xl mx-auto px-8 pb-20">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -391,11 +398,56 @@ export default function AboutPage() {
               transition={{ delay: 0.2, duration: 0.8 }}
               className="text-gray-500 uppercase tracking-[0.6em] text-xs font-semibold mb-6"
             >
-              ABOUT TEDxNIITUniversity
+              ABOUT TED
             </motion.h2>
           </motion.div>
 
-          {/* INTERACTIVE DESCRIPTION CONTAINER */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="p-12 rounded-3xl border border-white/15 backdrop-blur-md cursor-default mx-auto"
+            style={{
+              boxShadow: "0 0 15px rgba(255, 255, 255, 0.1)",
+              backgroundColor: "rgba(0, 0, 0, 0.3)"
+            }}
+          >
+            <motion.p 
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3, duration: 0.8 }}
+              className="text-gray-300 text-lg leading-relaxed text-center"
+            >
+              TED is a nonprofit devoted to spreading ideas worth spreading. Started as a conference in 1984, 
+              TED has grown into a global community celebrating human curiosity and the power of ideas to change attitudes, 
+              lives and ultimately, the world.
+            </motion.p>
+          </motion.div>
+        </section>
+
+        {/* ========== SECTION 3: ABOUT TEDxNIITUniversity ========== */}
+        <section className="w-full max-w-4xl mx-auto px-8 pb-20">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.5 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-8"
+          >
+            <motion.h2 
+              initial={{ opacity: 0, letterSpacing: "0.2em" }}
+              whileInView={{ opacity: 1, letterSpacing: "0.6em" }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2, duration: 0.8 }}
+              className="text-gray-500 uppercase tracking-[0.6em] text-xs font-semibold mb-6"
+            >
+              ABOUT TEDxNIITUNIVERSITY
+            </motion.h2>
+          </motion.div>
+
+          {/* INTERACTIVE DESCRIPTION CONTAINER - AQUA GLOW */}
           <motion.div 
             variants={containerVariants}
             initial="initial"
@@ -437,20 +489,20 @@ export default function AboutPage() {
           </motion.div>
         </section>
 
-        {/* THEME SECTION */}
-        <section className="w-full max-w-6xl mx-auto px-24 pb-32">
-          <div className="text-center mb-12">
+        {/* ========== SECTION 4: THEME REVEAL ========== */}
+        <section className="w-full max-w-6xl mx-auto px-8 pb-24 md:px-24">
+          <div className="text-center mb-16">
             <motion.h2 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.8 }}
               transition={{ duration: 0.6 }}
-              className="text-gray-500 uppercase tracking-[0.6em] text-lg font-semibold mb-8"
+              className="text-gray-500 uppercase tracking-[0.6em] text-sm font-semibold mb-12"
             >
               THEME
             </motion.h2>
             
-            {/* SUBLIS GLOWING REVEAL */}
+            {/* LOGO + SUBLIS STACK */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -458,27 +510,83 @@ export default function AboutPage() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="relative inline-block"
             >
+              {/* WATER DROPLET LOGO - CENTRAL FLOATING */}
+              <motion.div
+                initial={{ opacity: 0, y: 40, scale: 0.9 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                animate={{ y: [0, -15, 0] }}
+                whileHover={{ scale: 1.08 }}
+                transition={{ 
+                  y: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+                  scale: { duration: 0.3 }
+                }}
+                className="flex justify-center mb-8 relative"
+              >
+                {/* Ripple effect behind logo */}
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.3] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="absolute inset-0 rounded-full border-2 border-sky-400/50 -m-8"
+                />
+                
+                {/* Aqua glow backdrop */}
+                <motion.div
+                  animate={{ 
+                    opacity: [0.3, 0.6, 0.3],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute -inset-12 bg-sky-400/20 blur-[60px] rounded-full"
+                />
+                
+                {/* Logo Image */}
+                <motion.div
+                  className="relative z-10 w-48 h-48 md:w-56 md:h-56"
+                  whileHover={{ 
+                    filter: "drop-shadow(0 0 30px rgba(56, 189, 248, 0.8))"
+                  }}
+                >
+                  <Image
+                    src="/TEDx LOGO (NO BG).png"
+                    alt="SUBLIS Water Droplet Logo"
+                    width={224}
+                    height={224}
+                    priority
+                    className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(56,189,248,0.5)]"
+                  />
+                </motion.div>
+              </motion.div>
+              
+              {/* SUBLIS TEXT - GLOWING GRADIENT */}
               <motion.h2 
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
-                className="text-7xl md:text-9xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-sky-400 to-white bg-[length:200%_auto] animate-gradient-x py-2"
+                transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+                className="text-6xl md:text-8xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-sky-300 to-white py-2 mt-6 drop-shadow-lg"
+                style={{
+                  backgroundSize: '200% auto',
+                  animation: 'gradient-x 4s linear infinite'
+                }}
               >
                 SUBLIS
               </motion.h2>
+              
+              {/* Glow aura under SUBLIS */}
               <motion.div 
-                animate={{ opacity: [0.4, 0.8, 0.4] }}
+                animate={{ opacity: [0.9, 0.6, 0.3] }}
                 transition={{ repeat: Infinity, duration: 3 }}
-                className="absolute inset-0 blur-2xl bg-sky-400/20 -z-10"
+                className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-40 bg-sky-400/20 blur-3xl -z-10"
               />
             </motion.div>
           </div>
 
-          {/* INTERACTIVE CONTAINERS */}
-          <div className="flex flex-col md:flex-row gap-8 items-stretch mt-16">
+          {/* ========== SECTION 5: THEME EXPLANATION ========== */}
+          <div className="flex flex-col md:flex-row gap-12 items-stretch mt-20">
             
-            {/* DESCRIPTION CONTAINER */}
+            {/* LEFT: EMOTIONAL TEXT */}
             <motion.div 
               variants={containerVariants}
               initial={{ opacity: 0, x: -50 }}
@@ -486,14 +594,25 @@ export default function AboutPage() {
               viewport={{ once: true, amount: 0.3 }}
               whileHover="hover"
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="flex-[2] p-10 rounded-3xl border backdrop-blur-md cursor-default"
+              className="flex-1 p-10 rounded-3xl border backdrop-blur-md cursor-default relative overflow-hidden"
             >
+              {/* Waterline animation background */}
+              <motion.div
+                animate={{ backgroundPosition: ['0% 0%', '100% 0%', '0% 0%'] }}
+                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-0 opacity-20 -z-10 pointer-events-none"
+                style={{
+                  backgroundImage: 'linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.1) 25%, transparent 50%, rgba(56, 189, 248, 0.1) 75%, transparent 100%)',
+                  backgroundSize: '200% 100%'
+                }}
+              />
+              
               <motion.h4 
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.4, duration: 0.6 }}
-                className="text-2xl font-bold mb-6 text-sky-400"
+                className="text-2xl md:text-3xl font-bold mb-6 bg-gradient-to-r from-sky-300 to-sky-200 bg-clip-text text-transparent"
               >
                 The Vision
               </motion.h4>
@@ -502,15 +621,24 @@ export default function AboutPage() {
                 whileInView={{ opacity: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.6, duration: 0.8 }}
-                className="text-gray-300 text-lg leading-relaxed"
+                className="text-gray-300 text-lg leading-relaxed mb-6"
               >
-                Add your theme description here. This space is designed to explain the 
-                core philosophy behind SUBLIS. The container glows blue by default 
-                and reacts with a sharp white/red shift when you explore it.
+                <span className="text-sky-300 font-semibold">SUBLIS</span> represents the confluence of ideas and innovation—
+                where great minds converge like water molecules finding harmony. It symbolizes the fluidity of thought, 
+                the ripple effect of inspiration, and the profound impact of shared wisdom. In a water droplet lies 
+                infinite possibility: reflection, refraction, and transformation. This is our commitment: to create a space 
+                where every idea matters, every voice resonates, and together we shape the future.
               </motion.p>
+              <motion.div 
+                initial={{ width: 0 }}
+                whileInView={{ width: "40%" }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4, duration: 0.8 }}
+                className="h-1 bg-gradient-to-r from-sky-400 to-transparent"
+              />
             </motion.div>
 
-            {/* LOGO CONTAINER */}
+            {/* RIGHT: GLASSY LOGO CARD */}
             <motion.div 
               variants={containerVariants}
               initial={{ opacity: 0, x: 50 }}
@@ -518,36 +646,68 @@ export default function AboutPage() {
               viewport={{ once: true, amount: 0.3 }}
               whileHover="hover"
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex-1 p-10 rounded-3xl border backdrop-blur-md flex flex-col items-center justify-center cursor-default"
+              className="flex-1 p-10 rounded-3xl border backdrop-blur-xl cursor-default flex flex-col items-center justify-center group relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                borderColor: 'rgba(56, 189, 248, 0.6)'
+              }}
             >
+              {/* Animated waterline effect inside card */}
+              <motion.div
+                animate={{ 
+                  clipPath: ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 0%)', 'inset(100% 0% 0% 0%)']
+                }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-0 bg-gradient-to-t from-sky-400/10 to-transparent pointer-events-none"
+              />
+              
+               {/* Logo Container */}
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
                 whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
-                className="relative group"
+                className="relative group z-10 mb-6"
+                whileHover={{ 
+                  scale: 1.1,
+                  rotate: 5
+                }}
               >
-                {/* Placeholder for your actual Logo */}
-                <div className="w-40 h-40 bg-white/10 rounded-full flex items-center justify-center border border-white/20 overflow-hidden">
-                   <span className="text-gray-500 font-bold">LOGO</span>
-                </div>
-                {/* Decorative ring */}
-                <div className="absolute -inset-2 border border-dashed border-sky-400/30 rounded-full animate-[spin_20s_linear_infinite]" />
+                <motion.div
+                 
+                >
+                  <Image
+                    src="/TEDx LOGO (NO BG).png"
+                    alt="SUBLIS Theme Logo"
+                    width={240}
+                    height={240}
+                    className="w-full h-full drop-shadow-[0_0_25px_rgba(56,189,248,0.6)]"
+                  />
+                </motion.div>
+                
+                {/* Rotating ring decorative */}
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 20, repeat: Infinity, linear: true }}
+                  className="absolute -inset-0 border-4 border-dashed border-sky-300/40 rounded-full"
+                />
               </motion.div>
+              
               <motion.p 
                 initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.8, duration: 0.6 }}
-                className="mt-8 text-[10px] uppercase tracking-[0.3em] text-gray-400 font-medium"
+                className="text-[11px] uppercase tracking-[0.3em] text-sky-300 font-semibold text-center relative z-10"
               >
-                Official Theme Identity
+                SUBLIS
               </motion.p>
             </motion.div>
-
           </div>
         </section>
+
       </main>
+
 
       <style jsx global>{`
         @keyframes gradient-x {
