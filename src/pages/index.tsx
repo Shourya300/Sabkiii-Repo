@@ -43,9 +43,8 @@ const InnovativeSection: React.FC<InnovativeSectionProps> = ({
     <motion.div
       ref={sectionRef}
       style={{ opacity, scale }}
-      className={`flex flex-col md:flex-row items-center min-h-screen ${
-        isReversed ? "md:flex-row-reverse" : ""
-      } ${className || ""}`}
+      className={`flex flex-col md:flex-row items-center min-h-screen ${isReversed ? "md:flex-row-reverse" : ""
+        } ${className || ""}`}
     >
       <motion.div
         style={{ x: isReversed ? xOffset : negatedXOffset }}
@@ -82,22 +81,22 @@ const HeroSection = () => {
   const heroRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  
+
   const handleConfetti = () => {
     const duration = 3 * 1000;
     const animationEnd = Date.now() + duration;
     const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
- 
+
     const randomInRange = (min: number, max: number) =>
       Math.random() * (max - min) + min;
- 
+
     const interval = window.setInterval(() => {
       const timeLeft = animationEnd - Date.now();
- 
+
       if (timeLeft <= 0) {
         return clearInterval(interval);
       }
- 
+
       const particleCount = 50 * (timeLeft / duration);
       confetti({
         ...defaults,
@@ -109,7 +108,7 @@ const HeroSection = () => {
         particleCount,
         origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
       });
-    },250);
+    }, 250);
   };
 
   useEffect(() => {
@@ -168,9 +167,8 @@ const HeroSection = () => {
       {isMobile ? <HeaderMob /> : <Header />}
       <div
         ref={heroRef}
-        className={`sticky top-0 h-[130vh] overflow-hidden ${
-          isFixed ? "fixed" : ""
-        }`}
+        className={`sticky top-0 h-[130vh] overflow-hidden ${isFixed ? "fixed" : ""
+          }`}
       >
         <div className="h-screen relative">
           <div className="absolute left-0 top-0 w-1/2 h-1/2 bg-gradient-to-br from-black-600 to-transparent transform overflow-hidden z-30 blur-sm">
@@ -261,7 +259,7 @@ const HeroSection = () => {
           </div>
           <div className="absolute top-[60%] left-1/2 transform -translate-x-1/2 text-white text-lg md:text-2xl z-[9999] md:mt-32 mt-20">
             <p className="text-center text-3xl font-bold">Main Event Concluded</p>
-            <p className="text-center text-sm">Stay Tuned For <span className="text-[#eb0028] font-bold">TEDx</span>'26!!</p>
+            <p className="text-center text-sm">Stay Tuned For <span className="text-[#eb0028] font-bold">TEDx</span>&apos;26!!</p>
             <CustomTimer />
           </div>
         </div>
